@@ -335,8 +335,6 @@ c.markdown(
     f"**Latest DNE exp.:** {fmt(p['last_dne_exp'])}  \n**Max AGL:** {agl_txt}  \n"
     f"**Map location:** {'County centroid (no linked filings)' if p['approx'] else 'Average of linked FAA filings'}"
 )
-if p["reviewed_note"]:
-    st.caption(f"Reviewed match note: {p['reviewed_note']}")
 
 
 def cluster_box(k, linked: bool):
