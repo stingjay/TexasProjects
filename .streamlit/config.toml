@@ -3,7 +3,6 @@ base = "light"
 primaryColor = "#1f6f6b"
 
 [server]
-headless = false
 maxUploadSize = 200
 
 [browser]
