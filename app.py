@@ -202,6 +202,8 @@ for ft in gj["features"]:
 mcol, lcol = st.columns([4, 1])
 layer_mode = lcol.radio("FAA filings on map", ["Linked to shown", "All filings", "Off"], index=0)
 basemap = lcol.toggle("Street basemap", value=True, help="Needs an internet connection. Turn off to work fully offline with county outlines only.")
+show_proj_labels = lcol.toggle("Project names", value=True)
+show_county_labels = lcol.toggle("County names", value=False)
 lcol.markdown(
     "**Projects** (size = MW)  \n"
     + "  \n".join(
@@ -245,6 +247,16 @@ if sel_inr in set(pv["inr"]):
     layers.append(pdk.Layer("ScatterplotLayer", pv[pv["inr"] == sel_inr][["lon", "lat", "radius", "tip"]],
                             get_position=["lon", "lat"], get_radius="radius", filled=False, stroked=True,
                             get_line_color=[20, 20, 20, 255], line_width_min_pixels=3, radius_min_pixels=6))
+
+if show_county_labels:
+    cl = pd.DataFrame([{"name": n, "lon": c[0], "lat": c[1]} for n, c in cents.items()])
+    layers.append(pdk.Layer("TextLayer", cl, get_position=["lon", "lat"], get_text="name", get_size=11,
+                            get_color=[95, 106, 102, 200], get_alignment_baseline="'center'"))
+if show_proj_labels and not pv.empty:
+    labels = pv[(pv["mw"] >= 20) | (pv["inr"] == sel_inr)] if len(pv) > 150 else pv
+    layers.append(pdk.Layer("TextLayer", labels[["lon", "lat", "name"]], get_position=["lon", "lat"], get_text="name",
+                            get_size=13, get_color=[29, 35, 33, 255], get_text_anchor="'start'",
+                            get_alignment_baseline="'center'", get_pixel_offset=[12, 0]))
 
 
 def view_for(df):
