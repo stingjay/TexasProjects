@@ -197,7 +197,7 @@ county_zone = (
 for ft in gj["features"]:
     z = county_zone.get(ft["properties"]["name"])
     ft["properties"]["fill"] = [31, 111, 107, 40] if z in (f_zones or []) else [200, 205, 199, 25]
-    ft["properties"]["tip"] = f"<b>{ft['properties']['name']} County</b><br/>CDR zone: {z or '—'}"
+    ft["properties"].update(t1=f"{ft['properties']['name']} County", t2=f"CDR zone: {z or '—'}", t3="", t4="")
 
 mcol, lcol = st.columns([4, 1])
 layer_mode = lcol.radio("FAA filings on map", ["Linked to shown", "All filings", "Off"], index=0)
@@ -227,24 +227,27 @@ if layer_mode != "Off":
         cc = cc[cc["owner"].isin(set(v["inr"]))]
     cc = cc.assign(
         color=cc["state"].map(CASE_RGB),
-        tip="<b>" + cc["asn"] + "</b><br/>" + cc["status"] + "<br/>" + cc["sponsor"].where(cc["sponsor"] != "", "(no sponsor)")
-        + "<br/>" + cc["sname"] + " · " + cc["agl"].fillna(0).astype(int).astype(str) + " ft AGL",
-    )[["lon", "lat", "color", "tip"]]
+        t1=cc["asn"],
+        t2=cc["status"],
+        t3=cc["sponsor"].where(cc["sponsor"] != "", "(no sponsor shown)"),
+        t4=cc["sname"] + " · " + cc["agl"].fillna(0).astype(int).astype(str) + " ft AGL",
+    )[["lon", "lat", "color", "t1", "t2", "t3", "t4"]]
     layers.append(pdk.Layer("ScatterplotLayer", cc, get_position=["lon", "lat"], get_fill_color="color",
                             get_radius=180, radius_min_pixels=1.5, radius_max_pixels=5, opacity=0.75, pickable=True))
 pv = v[v["lat"].notna()].copy()
 pv["color"] = [STATUS_RGB[s] + [90 if a else 220] for s, a in zip(pv["status"], pv["approx"])]
 pv["radius"] = pv["mw"].clip(lower=1).map(math.sqrt) * 260 + 600
-pv["tip"] = (
-    "<b>" + pv["name"] + "</b><br/>" + pv["inr"] + " · " + pv["mw"].round(1).astype(str) + " MW · " + pv["county"]
-    + "<br/>" + pv["status_label"] + "<br/>DNEs: " + pv["dne"].astype(str) + " (" + pv["in_effect"].astype(str) + " in effect)"
-)
-layers.append(pdk.Layer("ScatterplotLayer", pv[["lon", "lat", "color", "radius", "tip"]],
+pv["t1"] = pv["name"]
+pv["t2"] = pv["inr"] + " · " + pv["mw"].round(1).astype(str) + " MW · " + pv["county"]
+pv["t3"] = pv["status_label"] + " · " + pv["stage"]
+pv["t4"] = "DNEs: " + pv["dne"].astype(str) + " (" + pv["in_effect"].astype(str) + " in effect, " + pv["pending"].astype(str) + " pending)"
+TIP = ["t1", "t2", "t3", "t4"]
+layers.append(pdk.Layer("ScatterplotLayer", pv[["lon", "lat", "color", "radius"] + TIP],
                         get_position=["lon", "lat"], get_fill_color="color", get_radius="radius",
                         get_line_color=[255, 255, 255, 200], line_width_min_pixels=1,
                         stroked=True, radius_min_pixels=4, pickable=True))
 if sel_inr in set(pv["inr"]):
-    layers.append(pdk.Layer("ScatterplotLayer", pv[pv["inr"] == sel_inr][["lon", "lat", "radius", "tip"]],
+    layers.append(pdk.Layer("ScatterplotLayer", pv[pv["inr"] == sel_inr][["lon", "lat", "radius"] + TIP],
                             get_position=["lon", "lat"], get_radius="radius", filled=False, stroked=True,
                             get_line_color=[20, 20, 20, 255], line_width_min_pixels=3, radius_min_pixels=6))
 
@@ -275,7 +278,9 @@ with mcol:
     st.pydeck_chart(
         pdk.Deck(layers=layers, initial_view_state=view_for(pv),
                  map_provider="carto" if basemap else None, map_style="light" if basemap else None,
-                 tooltip={"html": "{tip}", "style": {"fontSize": "12px"}}),
+                 tooltip={"html": "<b>{t1}</b><br/>{t2}<br/>{t3}<br/>{t4}",
+                          "style": {"fontSize": "12px", "backgroundColor": "#1d2321", "color": "#f4f5f2",
+                                    "padding": "6px 8px", "borderRadius": "4px"}}),
         height=560,
     )
 
