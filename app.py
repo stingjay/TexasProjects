@@ -125,20 +125,28 @@ st.sidebar.caption(
 )
 
 # ---------------------------------------------------------------- sidebar: filters
-DEFAULTS = dict(zones=["NORTH"], fuel=["WIN", "SOL", "OTH"], fis="Any", faa="Any", stage="Any", status="Any", q="")
-WIND_SCREEN = {**DEFAULTS, "fuel": ["WIN"]}
+# ---- DEFAULT VIEW ----------------------------------------------------------
+# Edit this to change what the app shows when it opens (and what "Reset filters" returns to).
+#   zones:  CDR zones, e.g. ["NORTH"], ["NORTH", "WEST"], or [] for all zones
+#   fuel:   GIS fuel codes, e.g. ["WIN"], ["WIN", "SOL", "OTH"], or [] for all fuels
+#           WIN = wind, SOL = solar, OTH = storage, GAS = gas, NUC = nuclear, HYD = hydro
+#   fis:    "Any", "Approved", "Not yet approved"
+#   faa:    "Any", "Has DNEs", "DNEs in effect", "Pending only", "None found"
+#   stage:  "Any", "In development", "Energized"
+#   status: "Any", "FIS + FAA", "FAA, FIS pending", "FIS, no FAA", "Neither"
+#   q:      search text, "" for none
+DEFAULTS = dict(zones=["NORTH"], fuel=["WIN"], fis="Any", faa="Any", stage="Any", status="Any", q="")
+# ----------------------------------------------------------------------------
 for k, val in DEFAULTS.items():
     st.session_state.setdefault(f"f_{k}", list(val) if isinstance(val, list) else val)
 if not isinstance(st.session_state["f_fuel"], list):  # carried over from the older single-select
     st.session_state["f_fuel"] = list(DEFAULTS["fuel"])
 
 st.sidebar.header("Filters")
-b1, b2 = st.sidebar.columns(2)
-for col, label, preset, kind in [(b1, "Reset filters", DEFAULTS, "secondary"), (b2, "North wind screen", WIND_SCREEN, "primary")]:
-    if col.button(label, type=kind, width="stretch"):
-        for k, val in preset.items():
-            st.session_state[f"f_{k}"] = list(val) if isinstance(val, list) else val
-        st.session_state.pop("sel", None)
+if st.sidebar.button("Reset filters", type="primary", width="stretch"):
+    for k, val in DEFAULTS.items():
+        st.session_state[f"f_{k}"] = list(val) if isinstance(val, list) else val
+    st.session_state.pop("sel", None)
 
 zones = sorted(z for z in projects["zone"].unique() if z)
 fuels = sorted(f for f in projects["fuel"].unique() if f)
