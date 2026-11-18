@@ -35,7 +35,8 @@ COUNTIES = DATA / "tx_counties.json"
 
 STATUS_RGB = {"both": [46, 125, 79], "faa": [183, 121, 31], "fis": [59, 106, 160], "none": [138, 145, 141]}
 CASE_RGB = {"eff": [46, 125, 79], "exp": [150, 155, 152], "pend": [214, 140, 30]}
-FUEL_NAMES = {"WIN": "Wind", "SOL": "Solar", "OTH": "Storage / other", "GAS": "Gas", "NUC": "Nuclear", "HYD": "Hydro"}
+FUEL_NAMES = {"WIN": "Wind", "SOL": "Solar", "OTH": "Storage", "GAS": "Gas", "NUC": "Nuclear", "HYD": "Hydro",
+              "OIL": "Oil", "WAT": "Water", "MWH": "Other (MWH)"}
 
 st.set_page_config(page_title="ERCOT Interconnection & FAA Map", page_icon="🗺️", layout="wide")
 
@@ -124,21 +125,28 @@ st.sidebar.caption(
 )
 
 # ---------------------------------------------------------------- sidebar: filters
-DEFAULTS = dict(zones=["NORTH"], fuel="WIN", fis="Any", faa="Any", stage="Any", status="Any", q="")
-for k, v in DEFAULTS.items():
-    st.session_state.setdefault(f"f_{k}", v)
+DEFAULTS = dict(zones=["NORTH"], fuel=["WIN", "SOL", "OTH"], fis="Any", faa="Any", stage="Any", status="Any", q="")
+WIND_SCREEN = {**DEFAULTS, "fuel": ["WIN"]}
+for k, val in DEFAULTS.items():
+    st.session_state.setdefault(f"f_{k}", list(val) if isinstance(val, list) else val)
+if not isinstance(st.session_state["f_fuel"], list):  # carried over from the older single-select
+    st.session_state["f_fuel"] = list(DEFAULTS["fuel"])
 
 st.sidebar.header("Filters")
-if st.sidebar.button("North wind screen", type="primary", width="stretch"):
-    for k, v in DEFAULTS.items():
-        st.session_state[f"f_{k}"] = v
-    st.session_state.pop("sel", None)
+b1, b2 = st.sidebar.columns(2)
+for col, label, preset, kind in [(b1, "Reset filters", DEFAULTS, "secondary"), (b2, "North wind screen", WIND_SCREEN, "primary")]:
+    if col.button(label, type=kind, width="stretch"):
+        for k, val in preset.items():
+            st.session_state[f"f_{k}"] = list(val) if isinstance(val, list) else val
+        st.session_state.pop("sel", None)
 
 zones = sorted(z for z in projects["zone"].unique() if z)
 fuels = sorted(f for f in projects["fuel"].unique() if f)
 st.session_state["f_zones"] = [z for z in st.session_state["f_zones"] if z in zones]
 f_zones = st.sidebar.multiselect("CDR zone", zones, key="f_zones")
-f_fuel = st.sidebar.selectbox("Fuel", ["All"] + fuels, key="f_fuel", format_func=lambda x: FUEL_NAMES.get(x, x))
+st.session_state["f_fuel"] = [f for f in st.session_state["f_fuel"] if f in fuels]
+f_fuel = st.sidebar.multiselect("Fuel", fuels, key="f_fuel", format_func=lambda x: FUEL_NAMES.get(x, x),
+                                help="Pick one or more. Leave empty to show every fuel.")
 f_fis = st.sidebar.selectbox("FIS", ["Any", "Approved", "Not yet approved"], key="f_fis")
 f_faa = st.sidebar.selectbox("FAA", ["Any", "Has DNEs", "DNEs in effect", "Pending only", "None found"], key="f_faa")
 f_stage = st.sidebar.selectbox("Stage", ["Any", "In development", "Energized"], key="f_stage")
@@ -148,8 +156,8 @@ f_q = st.sidebar.text_input("Search", key="f_q", placeholder="Project, INR, deve
 v = projects
 if f_zones:
     v = v[v["zone"].isin(f_zones)]
-if f_fuel != "All":
-    v = v[v["fuel"] == f_fuel]
+if f_fuel:
+    v = v[v["fuel"].isin(f_fuel)]
 if f_fis != "Any":
     v = v[v["fis_ok"] == (f_fis == "Approved")]
 if f_faa == "Has DNEs":
